@@ -1,50 +1,60 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const pg = require('pg');
 const app = express();
-const cors = require('cors'); 
 const port = 4000;
-
-// Middleware pour traiter les données JSON des requêtes POST
-app.use(bodyParser.json());
+const cors = require('cors');
 
 app.use(cors());
+app.use(bodyParser.json());
+
+// Create a PostgreSQL connection pool
+const connectionString = 'postgres://mpgsibel:tHrkVGaenh3EptPWxt-C9xlkHhaQBw7w@cornelius.db.elephantsql.com/mpgsibel';
+
+const pool = new pg.Pool({
+  connectionString: connectionString,
+});
 
 
-// Variable pour stocker les informations obtenues dans /login
-const loginData = [];
+// Endpoint to create a new account
+app.post('/login', async (req, res) => {
+  const { username, password } = req.body;
 
-// Endpoint pour gérer les requêtes POST /login
-app.post('/login', (req, res) => {
-  // Récupérez les données du corps de la requête
-  const { cliId, username, password } = req.body;
+  try {
+    // Insert a new account into the database
+    const result = await pool.query(
+      'INSERT INTO account (username, password) VALUES ($1, $2) RETURNING *',
+      [username, password]
+    );
 
-  // Vérifiez si clientId, username et password sont non nuls
-  if (cliId && username && password) {
-    // Enregistrez les données dans la variable loginData si nécessaire
-    loginData.push({ cliId, username, password });
-    res.status(200).json({ message: 'Authentification réussie' });
-  } else {
-    res.status(401).json({ message: 'Authentification échouée' });
+    // Get the newly created account from the result
+    const createdAccount = result.rows[0];
+
+    res.status(201).json({ message: 'Account created successfully', account: createdAccount });
+  } catch (error) {
+    console.error('Error creating an account:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-
-
-// Endpoint pour gérer les requêtes PATCH /ping
-app.patch('/ping', (req, res) => {
-  // Récupérez le cliId de la requête
-  const cliId = req.query.cliId;
-
-  res.status(200).json({ message: 'Ping réussi', cliId });
+// Get all accounts
+app.get('/', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM account');
+    const accounts = result.rows;
+    
+    res.json({ message: 'All accounts retrieved successfully', accounts });
+  } catch (error) {
+    console.error('Error retrieving accounts from the database:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
-// Endpoint pour gérer les requêtes GET /
-app.get('/', (req, res) => {
-
-  res.json({ message: 'Données de l\'application Express.js', loginData });
-});
-
-// Démarrer le serveur Express
+// Start express server
 app.listen(port, () => {
   console.log(`Serveur Express en cours d'exécution sur le port ${port}`);
 });
+
+
+// Export the Express API
+module.exports = app
