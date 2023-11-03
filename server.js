@@ -1,10 +1,14 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
+const cors = require('cors'); 
 const port = 4000;
 
 // Middleware pour traiter les données JSON des requêtes POST
 app.use(bodyParser.json());
+
+app.use(cors());
+
 
 // Variable pour stocker les informations obtenues dans /login
 const loginData = [];
